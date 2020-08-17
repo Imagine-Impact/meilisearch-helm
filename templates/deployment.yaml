@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "search.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "search.name" . }}
+    helm.sh/chart: {{ include "search.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "search.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "search.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+          - name: search-port
+            containerPort: {{ .Values.env.PORT }}
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.env.PORT }}
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.env.PORT }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+          - mountPath: /data.ms
+            name: storage
+      restartPolicy: Always
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "search.fullname" . }}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: {{ include "search.fullname" . }}

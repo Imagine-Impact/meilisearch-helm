@@ -1,0 +1,51 @@
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "search.fullname" . -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app.kubernetes.io/name: {{ include "search.name" . }}
+    helm.sh/chart: {{ include "search.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-body-size: "80m"
+{{- if not .Values.ingress.tls }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "false" # turn off ssl redirect for external.
+{{- else }}
+  {{- if ne .Values.ingress.tls_source "secret" }}
+    cert-manager.io/issuer: {{ template "search.fullname" . }}
+  {{- end }}
+{{- end }}
+{{- if .Values.ingress.extraAnnotations }}
+{{ toYaml .Values.ingress.extraAnnotations | indent 4 }}
+{{- end }}
+spec:
+{{- if .Values.ingress.tls }}
+  tls:
+  {{- range .Values.ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
+      secretName: {{ if .secretName }}{{ .secretName }}{{ else }}tls-{{ $fullName }}-ingress{{ end }}
+  {{- end }}
+{{- end }}
+  rules:
+  {{- range $host := .Values.ingress.hosts }}
+    - host: {{ .name | quote }}
+      http:
+        paths:
+      {{- range .routes }}
+        - path: {{ .path | quote }}
+          backend:
+            serviceName: {{ $fullName }}
+            servicePort: {{ .port }}
+      {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,28 @@
+{{- if .Values.ingress.enabled -}}
+  {{- if eq .Values.ingress.tls_source "letsEncrypt" -}}
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: {{ template "search.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "search.name" . }}
+    helm.sh/chart: {{ include "search.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  acme:
+    {{- if eq .Values.letsEncrypt.environment "production" }}
+    server: https://acme-v02.api.letsencrypt.org/directory
+    {{- end }}
+    {{- if eq .Values.letsEncrypt.environment "staging" }}
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    {{- end }}
+    email: {{ .Values.letsEncrypt.email }}
+    privateKeySecretRef:
+      name: {{ .Release.Name }}-letsencrypt-{{ .Values.letsEncrypt.environment }}
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+  {{- end -}}
+{{- end -}}

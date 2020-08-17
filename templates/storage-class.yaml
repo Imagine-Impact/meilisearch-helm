@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ template "search.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "search.name" . }}
+    helm.sh/chart: {{ include "search.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+provisioner: kubernetes.io/aws-ebs
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+parameters:
+  type: io1
+  fsType: ext4
